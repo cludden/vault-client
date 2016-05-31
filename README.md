@@ -61,19 +61,31 @@ const vault = new Vault({
 });
 ```
 
-### vault.login(options, [callback])
-Create a new session with vault server and periodically refresh it.  
-*currently the 'userpass' backend is the only supported backend*
+
+### vault.delete(url, [config], [cb])
+Issues a DELETE request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
 
 ###### Params
 | param | type | description |
 | :--- | :---: | :--- |
-| options* | `{Object} | login options |
-| options.backend* | `{String}` | the backend to use. currently supported backends: userpass |
-| options.options* | `{Object}` | backend specific options |
-| options.renew_interval | `{String}` | the renewal interval |
+| url* | `{String}` | relative url |
+| config | `{Object}` | [axios](https://github.com/mzabriskie/axios) configuration object |
+| cb | `{Function}` | node style callback |
+
+
+### vault.head(url, [config], [cb])
+Issues a HEAD request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| url* | `{String}` | relative url |
+| config | `{Object}` | [axios](https://github.com/mzabriskie/axios) configuration object |
+| cb | `{Function}` | node style callback |
+
 
 ### vault.get(url, [config], [cb])
+Issues a GET request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
 
 ###### Params
 | param | type | description |
@@ -100,6 +112,57 @@ vault.get('/secrets/foo', {
     // catch any errors
 });
 ```
+
+
+### vault.login(options, [callback])
+Create a new session with vault server and periodically refresh it.  
+*currently the 'userpass' backend is the only supported backend*
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| options* | `{Object} | login options |
+| options.backend* | `{String}` | the backend to use. currently supported backends: userpass |
+| options.options* | `{Object}` | backend specific options |
+| options.renew_interval | `{String}` | the interval to re-authenticate with vault server and retrieve an updated client_token |
+| options.retry | `{Object}` | in the event of network errors, the client will continue attempting the login using [node-retry](https://github.com/tim-kos/node-retry) |
+
+
+### vault.patch(url, [data], [config], [cb])
+Issues a PATCH request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| url* | `{String}` | relative url |
+| data | `{Object}` | request data |
+| config | `{Object}` | [axios](https://github.com/mzabriskie/axios) configuration object |
+| cb | `{Function}` | node style callback |
+
+
+### vault.post(url, [data], [config], [cb])
+Issues a POST request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| url* | `{String}` | relative url |
+| data | `{Object}` | request data |
+| config | `{Object}` | [axios](https://github.com/mzabriskie/axios) configuration object |
+| cb | `{Function}` | node style callback |
+
+
+### vault.put(url, [data], [config], [cb])
+Issues a PUT request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| url* | `{String}` | relative url |
+| data | `{Object}` | request data |
+| config | `{Object}` | [axios](https://github.com/mzabriskie/axios) configuration object |
+| cb | `{Function}` | node style callback |
+
 
 ## Events
 | name | callback | description |
