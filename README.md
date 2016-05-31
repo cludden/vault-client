@@ -61,6 +61,18 @@ const vault = new Vault({
 });
 ```
 
+### vault.login(options, [callback])
+Create a new session with vault server and periodically refresh it.  
+*currently the 'userpass' backend is the only supported backend*
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| options* | `{Object} | login options |
+| options.backend* | `{String}` | the backend to use. currently supported backends: userpass |
+| options.options* | `{Object}` | backend specific options |
+| options.renew_interval | `{String}` | the renewal interval |
+
 ### vault.get(url, [config], [cb])
 
 ###### Params
@@ -76,16 +88,16 @@ const vault = new Vault({
 vault.get('/secrets/foo', {
     timeout: 1000
 }, function(err, results) {
-
+    console.log(results);
 })
 
 // promise style
 vault.get('/secrets/foo', {
     timeout: 1000
 }).then(function(res) {
-
+    // res is an axios res object
 }).catch(function(err) {
-
+    // catch any errors
 });
 ```
 
@@ -94,3 +106,20 @@ vault.get('/secrets/foo', {
 | :--- | :--- | :--- |
 | error | `function(err)` | all errors will bubbble to here |
 | error:login | `function(err)` | login errors |
+
+## Testing
+*requires up to date versions of docker & docker-compose*
+```bash
+docker-compose up
+```
+
+## Contributing
+1. [Fork it](https://github.com/cludden/vault-client/fork)
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create new Pull Request
+
+## License
+Copyright (c) 2016 Chris Ludden
+Licensed under the [MIT License](LICENSE.md);
