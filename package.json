@@ -12,5 +12,23 @@
     "node"
   ],
   "author": "chris ludden",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "async": "^1.5.2",
+    "axios": "^0.11.1",
+    "axios-mock-adapter": "^1.4.0",
+    "joi": "^8.4.0",
+    "lodash": "^4.13.1",
+    "retry": "^0.9.0"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "eslint": "^2.11.1",
+    "grunt": "^1.0.1",
+    "grunt-mocha-istanbul": "^5.0.1",
+    "istanbul": "^0.4.3",
+    "mocha": "^2.5.3",
+    "sinon": "^1.17.4",
+    "sinon-chai": "^2.8.0"
+  }
 }
