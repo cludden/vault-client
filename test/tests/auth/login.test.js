@@ -2,6 +2,7 @@
 
 const async = require('async');
 const expect = require('chai').expect;
+const faker = require('faker');
 const ms = require('ms');
 const sinon = require('sinon');
 const userpass = require('../../../lib/auth/backends/userpass');
@@ -139,12 +140,201 @@ describe(`vault.login()`, function() {
             tick();
         });
 
-        it('should fail if the `auth` data returned is missing a `client_token` or `lease_duration` attribute');
+        it('should fail if the `auth` data returned is missing a `client_token` or `lease_duration` attribute', function(done) {
+            const clock = sinon.useFakeTimers();
+            sinon.spy(vault, 'login');
+            sinon.stub(userpass, 'login').yieldsAsync(null, {});
+            vault.login({
+                backend: 'userpass',
+                options: {},
+                renew_interval: '15m',
+                retry: {
+                    retries: 2,
+                    factor: 1,
+                    minTimeout: ms('1m'),
+                    maxTimeout: ms('1m'),
+                    randomize: false
+                }
+            }, function(err) {
+                const e = _.attempt(function() {
+                    expect(err).to.exist;
+                    expect(vault.login).to.have.callCount(1);
+                    expect(userpass.login).to.have.callCount(1);
+                });
+                clock.restore();
+                vault.login.restore();
+                userpass.login.restore();
+                done(e);
+            });
+            clock.tick(ms('10m'));
+        });
     });
 
     context('(successes)', function() {
-        it('should ');
-        it('should store the client_token at path `_auth.token`');
-        it('should renew the login periodically based on the `renew_interval` option');
+
+        it('should periodically update the client_token based on the renewal_interval', function(done) {
+            const timeout = global.setTimeout;
+            const clock = sinon.useFakeTimers();
+            sinon.spy(vault, 'login');
+            const stub = sinon.stub(userpass, 'login');
+            const args = [];
+            _.range(3).forEach(function(i) {
+                const auth = {
+                    client_token: faker.random.uuid(),
+                    lease_duration: ms('30m')
+                };
+                args.push(auth);
+                stub.onCall(i).yieldsAsync(null, auth);
+            });
+            vault.login({
+                backend: 'userpass',
+                options: {},
+                renew_interval: '15m',
+                retry: {
+                    forever: true,
+                    factor: 1,
+                    minTimeout: ms('1m'),
+                    maxTimeout: ms('1m'),
+                    randomize: false
+                }
+            });
+            function tick(time, cb) {
+                timeout.call(global, function() {
+                    clock.tick(ms(time));
+                    timeout.call(global, cb, 0);
+                }, 0);
+            }
+            async.eachSeries(_.range(2), function(i, next) {
+                tick('15.1m', next);
+            }, function() {
+                const err = _.attempt(function() {
+                    expect(vault.status).to.equal('authenticated');
+                    expect(_.get(vault, '_auth.token')).to.be.a('string');
+                    expect(vault.login).to.have.callCount(3);
+                });
+                clock.restore();
+                vault.login.restore();
+                userpass.login.restore();
+                done(err);
+            });
+        });
+
+        it('should continue to login even if there are network disruptions', function(done) {
+            const timeout = global.setTimeout;
+            const clock = sinon.useFakeTimers();
+            sinon.spy(vault, 'login');
+            const stub = sinon.stub(userpass, 'login');
+
+            // first login, unsuccessful 3 times
+            const timeoutError = new Error('timeout of');
+            timeoutError.code = 'ECONNABORTED';
+            const args = [];
+            _.range(3).forEach(function(i) {
+                args.push([timeoutError]);
+                stub.onCall(i).yieldsAsync(timeoutError);
+            });
+            // next 50 renewals successful
+            _.range(3,53).forEach(function(i) {
+                const auth = {
+                    client_token: faker.random.uuid(),
+                    lease_duration: ms('30m') / 1000
+                };
+                args.push([null, auth]);
+                stub.onCall(i).yieldsAsync(null, auth);
+            });
+            _.range(53, 55).forEach(function(i) {
+                args.push([timeoutError]);
+                stub.onCall(i).yieldsAsync(timeoutError);
+            });
+            const lastAuth = {
+                client_token: faker.random.uuid(),
+                lease_duration: ms('30m') / 1000
+            };
+            args.push([null, lastAuth]);
+            stub.onCall(55).yieldsAsync(null, lastAuth);
+            vault.login({
+                backend: 'userpass',
+                options: {},
+                renew_interval: '15m',
+                retry: {
+                    forever: true,
+                    factor: 1,
+                    minTimeout: ms('45s'),
+                    maxTimeout: ms('45s')
+                }
+            });
+            function tick(time, cb) {
+                timeout.call(global, function() {
+                    clock.tick(ms(time));
+                    timeout.call(global, cb, 0);
+                }, 0);
+            }
+            async.waterfall([
+                // handle initial login (fail, fail, fail, success)
+                function(fn) {
+                    timeout(function() {
+                        async.eachSeries(_.range(4), function(i, next) {
+                            tick('1m', next);
+                        }, function() {
+                            const err = _.attempt(function() {
+                                expect(userpass.login).to.have.callCount(4);
+                                expect(_.get(vault, '_auth.token')).to.equal(args[3][1].client_token);
+                            });
+                            fn(err);
+                        });
+                    }, 0);
+                },
+
+                // handle next 50 successfull renewals
+                function(fn) {
+                    async.eachSeries(_.range(49), function(i, next) {
+                        const callcount = userpass.login.callCount;
+                        tick('15.1m', function() {
+                            const err = _.attempt(function() {
+                                expect(userpass.login.callCount).equal(callcount + 1);
+                            });
+                            next(err);
+                        });
+                    }, function(err) {
+                        const e = _.attempt(function() {
+                            expect(err).to.not.exist;
+                            expect(userpass.login).to.have.callCount(53);
+                            expect(_.get(vault, '_auth.token')).to.equal(args[52][1].client_token);
+                        });
+                        fn(e);
+                    });
+                },
+
+                function(fn) {
+                    tick('15.1m', function() {
+                        const err = _.attempt(function() {
+                            expect(userpass.login).to.have.callCount(54);
+                            expect(_.get(vault, '_auth.token')).to.not.exist;
+                            expect(vault.status).to.equal('unauthenticated');
+                        });
+                        fn(err);
+                    });
+                },
+
+                // handle next 2 renewals
+                function(fn) {
+                    async.eachSeries(_.range(2), function(i, next) {
+                        tick('1m', next);
+                    }, function() {
+                        const err = _.attempt(function() {
+                            expect(userpass.login).to.have.callCount(56);
+                            expect(_.get(vault, '_auth.token')).to.equal(_.last(args)[1].client_token);
+                            expect(vault.status).to.equal('authenticated');
+                        });
+                        fn(err);
+                    });
+                }
+            ], function(err) {
+                clock.restore();
+                userpass.login.restore();
+                vault.login.restore();
+                done(err);
+            });
+        });
     });
 });
