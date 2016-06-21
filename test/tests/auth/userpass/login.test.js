@@ -31,6 +31,7 @@ describe(`[backend:userpass] login`, function() {
     });
 
     after(function(done) {
+        vault.logout();
         vault.delete(`/auth/userpass/users/${credentials.username}`, {
             headers: {'x-vault-token': root_token }
         }, done);
