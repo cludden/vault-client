@@ -333,6 +333,7 @@ describe(`vault.login()`, function() {
                 clock.restore();
                 userpass.login.restore();
                 vault.login.restore();
+                vault.logout();
                 done(err);
             });
         });

@@ -30,6 +30,13 @@ describe(`[backend:userpass] login`, function() {
         }, done);
     });
 
+    after(function(done) {
+        vault.logout();
+        vault.delete(`/auth/userpass/users/${credentials.username}`, {
+            headers: {'x-vault-token': root_token }
+        }, done);
+    });
+
     context('(failures)', function() {
         it('should fail if the backend options are missing a `username` attribute', function(done) {
             vault.login({
