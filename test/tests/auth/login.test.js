@@ -8,9 +8,14 @@ const sinon = require('sinon');
 const userpass = require('../../../lib/auth/backends/userpass');
 const _ = require('lodash');
 
+function tick(timeout, clock, time, cb) {
+    timeout.call(global, function() {
+        clock.tick(ms(time));
+        timeout.call(global, cb, 0);
+    }, 100);
+}
+
 describe(`vault.login()`, function() {
-
-
     context('(failures)', function() {
         it('should fail if an invalid backend is specified', function(done) {
             vault.login({
@@ -181,7 +186,7 @@ describe(`vault.login()`, function() {
             _.range(3).forEach(function(i) {
                 const auth = {
                     client_token: faker.random.uuid(),
-                    lease_duration: ms('30m')
+                    lease_duration: ms('30m') / 1000
                 };
                 args.push(auth);
                 stub.onCall(i).yieldsAsync(null, auth);
@@ -189,23 +194,15 @@ describe(`vault.login()`, function() {
             vault.login({
                 backend: 'userpass',
                 options: {},
-                renew_interval: '15m',
                 retry: {
                     forever: true,
                     factor: 1,
                     minTimeout: ms('1m'),
-                    maxTimeout: ms('1m'),
-                    randomize: false
+                    maxTimeout: ms('1m')
                 }
             });
-            function tick(time, cb) {
-                timeout.call(global, function() {
-                    clock.tick(ms(time));
-                    timeout.call(global, cb, 0);
-                }, 0);
-            }
             async.eachSeries(_.range(2), function(i, next) {
-                tick('15.1m', next);
+                tick(timeout, clock, '30.1m', next);
             }, function() {
                 const err = _.attempt(function() {
                     expect(vault.status).to.equal('authenticated');
@@ -263,18 +260,12 @@ describe(`vault.login()`, function() {
                     maxTimeout: ms('45s')
                 }
             });
-            function tick(time, cb) {
-                timeout.call(global, function() {
-                    clock.tick(ms(time));
-                    timeout.call(global, cb, 0);
-                }, 0);
-            }
             async.waterfall([
                 // handle initial login (fail, fail, fail, success)
                 function(fn) {
                     timeout(function() {
                         async.eachSeries(_.range(4), function(i, next) {
-                            tick('1m', next);
+                            tick(timeout, clock, '1m', next);
                         }, function() {
                             const err = _.attempt(function() {
                                 expect(userpass.login).to.have.callCount(4);
@@ -289,27 +280,28 @@ describe(`vault.login()`, function() {
                 function(fn) {
                     async.eachSeries(_.range(49), function(i, next) {
                         const callcount = userpass.login.callCount;
-                        tick('15.1m', function() {
+                        tick(timeout, clock, '30.1m', function() {
                             const err = _.attempt(function() {
                                 expect(userpass.login.callCount).equal(callcount + 1);
                             });
                             next(err);
                         });
                     }, function(err) {
-                        const e = _.attempt(function() {
-                            expect(err).to.not.exist;
-                            expect(userpass.login).to.have.callCount(53);
-                            expect(_.get(vault, '_auth.token')).to.equal(args[52][1].client_token);
+                        tick(timeout, clock, '10s', function() {
+                            const e = _.attempt(function() {
+                                expect(err).to.not.exist;
+                                expect(userpass.login).to.have.callCount(53);
+                                expect(_.get(vault, '_auth.token')).to.equal(args[52][1].client_token);
+                            });
+                            fn(e);
                         });
-                        fn(e);
                     });
                 },
 
                 function(fn) {
-                    tick('15.1m', function() {
+                    tick(timeout, clock, '30.1m', function() {
                         const err = _.attempt(function() {
                             expect(userpass.login).to.have.callCount(54);
-                            expect(_.get(vault, '_auth.token')).to.not.exist;
                             expect(vault.status).to.equal('unauthenticated');
                         });
                         fn(err);
@@ -319,14 +311,16 @@ describe(`vault.login()`, function() {
                 // handle next 2 renewals
                 function(fn) {
                     async.eachSeries(_.range(2), function(i, next) {
-                        tick('1m', next);
+                        tick(timeout, clock, '1m', next);
                     }, function() {
-                        const err = _.attempt(function() {
-                            expect(userpass.login).to.have.callCount(56);
-                            expect(_.get(vault, '_auth.token')).to.equal(_.last(args)[1].client_token);
-                            expect(vault.status).to.equal('authenticated');
+                        tick(timeout, clock, '10s', function() {
+                            const err = _.attempt(function() {
+                                expect(userpass.login).to.have.callCount(56);
+                                expect(_.get(vault, '_auth.token')).to.equal(_.last(args)[1].client_token);
+                                expect(vault.status).to.equal('authenticated');
+                            });
+                            fn(err);
                         });
-                        fn(err);
                     });
                 }
             ], function(err) {

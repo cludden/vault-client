@@ -71,6 +71,9 @@ describe(`[backend:userpass] login`, function() {
                     expect(err).to.exist;
                     expect(err.type).to.equal('ERROR:LOGIN');
                 });
+                if (e) {
+                    console.log(err);
+                }
                 done(e);
             });
         });

@@ -1,47 +1,91 @@
 # vault-client
-a node client for HashiCorp's [vault](https://www.vaultproject.io/).
+a node http client for HashiCorp's [vault](https://www.vaultproject.io/).
 
 *note: work in progress*
+
+
 
 ## Installing
 ```bash
 npm install --save vault-client
 ```
 
+
 ## Getting Started
 ```javascript
 const Vault = require('vault-client');
-const vault = new Vault({
+const client = new Vault({
     url: 'https://vault.example.com'
 });
 
-async.waterfall([
+async.series([
+    // first, we need to authenticate with vault
     function login(next) {
         vault.login({
             backend: 'userpass',
             options: {
                 username: 'bob',
                 password: 'password1'
-            },
-            retry: {
-                forever: true,
-                minTimeout: 1000,
-                maxTimeout: 1000 * 60 * 10
             }
-        }, fn);
+        }, next);
     },
 
-    function secrets(next) {
-        vault.get('/secrets/foo', next);
+    // next, we can fetch a single secret from vault
+    function get(next) {
+        vault.get('/secret/foo', function(err, data) {
+            console.log(data);
+            // {
+            //   "data": {
+            //     "foo": "bar"
+            //   },
+            //   "lease_duration": 2592000,
+            //   "renewable": false
+            // }
+            next(err, data);
+        });
+    },
+
+    // or, we can choose to watch a single secret. the vault client
+    // will store the fetched secret locally, and will handle renewing
+    // the secret if a lease_duration is included in the response metadata
+    function(next) {
+        vault.watch({
+            id: 'foo'
+            path: '/secret/foo'
+        }, function(err, data) {
+            const foo = vault.secret('foo');
+            console.log(JSON.stringify(foo));
+            // { "foo": "bar" }
+            next(err, data);
+        });
+
+        // we can listen for secret renewals
+        vault.on('secret:foo', function(data) {
+            console.log(JSON.stringify(data))
+            // { "foo": "baz" }
+        });
+    },
+
+    // we can also choose to watch multiple secrets. again, the vault client
+    // will handle renewing each secret based on its lease_duration.
+    function(next) {
+        vault.watch([{
+            id: 'foo',
+            path: '/secret/foo'
+        }, {
+            id: 'bar',
+            path: '/secret/bar'
+        }], function(err, data) {
+            const foo = vault.secret('foo');
+            const bar = vault.secret('bar');
+            console.log(JSON.stringify(foo), JSON.stringify(bar));
+            // { "foo": "bar" } { "bar": "baz" }
+            next(err, data);
+        });
     }
-], function(err, results) {
-    if (err) {
-        console.error(err);
-    } else {
-        console.log(JSON.stringify(results.data));
-    }
-});
+]);
 ```
+
 
 ## API
 ### Vault(options)
@@ -60,7 +104,6 @@ const vault = new Vault({
     url: 'https://localhost:8200/v1'
 });
 ```
-
 
 ### vault.delete(url, [config], [cb])
 Issues a DELETE request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
@@ -124,7 +167,6 @@ Create a new session with vault server and periodically refresh it.
 | options* | `{Object} | login options |
 | options.backend* | `{String}` | the backend to use. currently supported backends: userpass |
 | options.options* | `{Object}` | backend specific options |
-| options.renew_interval | `{String}` | the interval to re-authenticate with vault server and retrieve an updated client_token |
 | options.retry | `{Object}` | in the event of network errors, the client will continue attempting the login using [node-retry](https://github.com/tim-kos/node-retry) |
 
 
@@ -164,11 +206,35 @@ Issues a PUT request to vault. If the client is authenticated, the request will 
 | cb | `{Function}` | node style callback |
 
 
+
 ## Events
 | name | callback | description |
 | :--- | :--- | :--- |
-| error | `function(err)` | all errors will bubbble to here |
+| error | `function(err)` | all errors will bubble to here |
 | error:login | `function(err)` | login errors |
+
+
+
+## Auth Backends
+Following are backend specific login options
+
+### userpass
+```js
+{
+    backend: 'userpass',
+    options: {
+        username: '<vault-userpass-username>',
+        password: '<vault-userpass-password>'
+    }
+}
+```
+
+## Todo
+- [ ] add support for additional auth backends
+- [ ] add internal store for storing secrets
+- [ ] add #watch method for fetching and renewing secrets
+
+
 
 ## Testing
 *requires up to date versions of docker & docker-compose*
@@ -176,12 +242,16 @@ Issues a PUT request to vault. If the client is authenticated, the request will 
 docker-compose up
 ```
 
+
+
 ## Contributing
 1. [Fork it](https://github.com/cludden/vault-client/fork)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+
 
 ## License
 Copyright (c) 2016 Chris Ludden
