@@ -1,6 +1,5 @@
 {
   "name": "vault-client",
-  "version": "0.1.0",
   "dependencies": {
     "abbrev": {
       "version": "1.0.7",
@@ -1246,5 +1245,6 @@
         }
       }
     }
-  }
+},
+  "version": "0.1.2"
 }

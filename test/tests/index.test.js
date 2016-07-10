@@ -58,7 +58,6 @@ describe(`constructor tests`, function() {
             },
 
             init: ['ready', function initializeVault(fn) {
-                console.log('calling init');
                 vault.put('/sys/init', {
                     secret_shares: 1,
                     secret_threshold: 1
@@ -72,7 +71,6 @@ describe(`constructor tests`, function() {
             }],
 
             unseal: ['init', function unsealVault(fn, r) {
-                console.log('unseal');
                 const key = r.init.keys[0];
                 vault.put('/sys/unseal', { key }, fn);
             }],
