@@ -5,7 +5,7 @@ to supporting basic http interaction with a vault api, it will also manage:
  - authentication & reauthentication based on token `lease_duration`
  - including the current access token on every request as the `X-Vault-Token` header
  - caching & renewing secrets based on `lease_duration`
- - notifying subscribers to secret renewals
+ - notifying subscribers of secret renewals
 
 
 
