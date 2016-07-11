@@ -4,7 +4,9 @@
   "description": "js client for HashiCorp's vault",
   "main": "index.js",
   "scripts": {
-    "test": "mocha test/tests/index.test.js test/tests/ --recursive"
+    "coverage": "node -e \"require('grunt').tasks(['coverage']);\"",
+    "test": "mocha test/tests/index.test.js test/tests/ --recursive",
+    "test:some": "mocha test/tests/index.test.js"
   },
   "keywords": [
     "vault",
@@ -33,7 +35,7 @@
     "faker": "^3.1.0",
     "grunt": "^1.0.1",
     "grunt-mocha-istanbul": "^5.0.1",
-    "istanbul": "^0.4.3",
+    "istanbul": "^0.4.4",
     "mocha": "^2.5.3",
     "ms": "^0.7.1",
     "sinon": "^1.17.4",

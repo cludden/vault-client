@@ -18,6 +18,9 @@ module.exports = {
                     cb = wait;
                     wait = 0;
                 }
+                if (!_.isFunction(cb)) {
+                    cb = function() {};
+                }
                 timeout.call(global, function() {
                     clock.tick(_.isString(time) ? ms(time) : time);
                     timeout.call(global, cb, wait);

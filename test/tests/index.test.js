@@ -32,7 +32,7 @@ describe(`constructor tests`, function() {
         }, function(res) {
             console.log(`VAULT:: ${res.config.method.toUpperCase()} ${res.config.url} ${res.status}`);
             console.log(JSON.stringify(res.data));
-            return res;
+            return Promise.reject(res);
         });
 
         async.auto({

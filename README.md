@@ -206,6 +206,27 @@ Issues a PUT request to vault. If the client is authenticated, the request will 
 | cb | `{Function}` | node style callback |
 
 
+### vault.secret([id])
+Fetch a secret from the store.
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| id | `{String}` | an id or path (if no id was specified with the `watch` call) of the secret to fetch |
+
+
+### vault.watch(secrets, [options], [cb])
+Fetches one or more secrets from vault and caches them in the store. If a secret includes a `lease_duration` greater than 0, this method will handle renewing them periodically. Failed attempts will be automatically retried using [node-retry](https://github.com/tim-kos/node-retry) |
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| secrets* | `{Object|Object[]|String|String[]}` | one or more secrets to watch. a secret can either be a relative url string (`/secret/foo`) or an object that defines a `path` attribute and an optional `id` |
+| options | `{Object}` |  |
+| options.retry | `{Object}` | optional [node-retry](https://github.com/tim-kos/node-retry) settings or retrying failed attempts |
+| cb | `{Function}` | node style callback |
+
+
 
 ## Events
 | name | callback | description |
@@ -229,10 +250,10 @@ Following are backend specific login options
 }
 ```
 
+
+
 ## Todo
 - [ ] add support for additional auth backends
-- [ ] add internal store for storing secrets
-- [ ] add #watch method for fetching and renewing secrets
 
 
 

@@ -3,6 +3,7 @@
 const async = require('async');
 const expect = require('chai').expect;
 const MockAdapter = require('axios-mock-adapter');
+const ms = require('ms');
 const sinon = require('sinon');
 const utils = require('../utils');
 const _ = require('lodash');
@@ -29,13 +30,20 @@ describe(`#watch()`, function() {
         });
 
         it(`should fail if one or more secret requests fail all attempts`, function(done) {
-            sinon.spy(vault, '_watch').yieldsAsync(new Error('something unexpected'));
-            vault.watch('/secret/foo', function(err) {
+            const mock = new MockAdapter(vault.client);
+            mock.onAny(/.+/).reply(503);
+            vault.watch('/secret/foo', {
+                retry: {
+                    retries: 2,
+                    minTimeout: 10,
+                    maxTimeout: 10,
+                    factor: 1
+                }
+            }, function(err) {
                 const e = _.attempt(function() {
                     expect(err).to.exist;
-                    expect(vault._watch).to.have.been.called;
                 });
-                vault._watch.restore();
+                mock.restore();
                 done(e);
             });
         });
@@ -45,13 +53,13 @@ describe(`#watch()`, function() {
         it(`should store secrets in cache and set up renewals`, function(done) {
             const SECRETS = {
                 'foo':  {
-                    lease_duration: 1000 * 60 * 60 * 24,
+                    lease_duration: ms('24h') / 1000,
                     data: {
                         foo: 'bar'
                     }
                 },
                 'bar': {
-                    lease_duration: 1000 * 60 * 60,
+                    lease_duration: ms('1h') / 1000,
                     data: {
                         bar: 'baz'
                     }
@@ -100,7 +108,12 @@ describe(`#watch()`, function() {
                 },
 
                 function(fn) {
-                    timemachine.tick('24.01h', function() {
+                    async.eachSeries(_.range(24), function(i, next) {
+                        timemachine.tick('61m', next);
+                    }, function(err) {
+                        if (err) {
+                            return fn(err);
+                        }
                         const e = _.attempt(function() {
                             expect(counter).to.have.property('foo', 2);
                             expect(counter).to.have.property('bar', 25);
