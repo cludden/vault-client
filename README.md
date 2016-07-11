@@ -1,7 +1,11 @@
 # vault-client
-a node http client for HashiCorp's [vault](https://www.vaultproject.io/).
+A node client for HashiCorp's [vault](https://www.vaultproject.io/). In addition
+to supporting basic http interaction with a vault api, it will also manage:
 
-*note: work in progress*
+ - authentication & reauthentication based on token `lease_duration`
+ - including the current access token on every request as the `X-Vault-Token` header
+ - caching & renewing secrets based on `lease_duration`
+ - notifying subscribers to secret renewals
 
 
 
@@ -9,6 +13,7 @@ a node http client for HashiCorp's [vault](https://www.vaultproject.io/).
 ```bash
 npm install --save vault-client
 ```
+
 
 
 ## Getting Started
@@ -87,6 +92,7 @@ async.series([
 ```
 
 
+
 ## API
 ### Vault(options)
 Creates a new `vault` client.
@@ -96,6 +102,7 @@ Creates a new `vault` client.
 | :--- | :---: | :--- |
 | options* | `{Object}` | options |
 | options.url* | `{String}` | the base url of the vault server |
+| options.retry | `{Object}` | global retry settings for failed network requests. see [node-retry](https://github.com/tim-kos/node-retry) for more info
 
 ###### Example
 ```javascript
@@ -104,6 +111,63 @@ const vault = new Vault({
     url: 'https://localhost:8200/v1'
 });
 ```
+
+### vault.secret([id])
+Fetch a secret from the store.
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| id | `{String}` | an id or path (if no id was specified with the `watch` call) of the secret to fetch |
+
+###### Example
+```javascript
+const secrets = vault.secret();
+console.log(JSON.stringify(secrets));
+// returns a copy of the internal store
+// {
+//      "foo": { "foo": "bar" },
+//      "bar": { "bar": "baz" },
+//      "/secret/other": { "this": "secret", "that": "secret" },
+//      "super": { "nested": { "secret": "s3cr3t" }}
+// }
+
+const nested = vault.secret('some.nested.secret');
+console.log(nested)
+// returns a copy of a branch of the store
+// "s3cr3t"
+```
+
+
+### vault.watch(secrets, [options], [cb])
+Fetches one or more secrets from vault and caches them in the store. If a secret includes a `lease_duration` greater than 0, this method will handle renewing them periodically. Failed attempts will be automatically retried using [node-retry](https://github.com/tim-kos/node-retry) |
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| secrets* | `{Object,Object[],String,String[]}` | one or more secrets to watch. a secret can either be a relative url string (`/secret/foo`) or an object that defines a `path` attribute and an optional `id`. if no `id` is provided, the path will be used as the key in the store |
+| options | `{Object}` |  |
+| options.retry | `{Object}` | optional [node-retry](https://github.com/tim-kos/node-retry) settings for retrying failed attempts |
+| cb | `{Function}` | node style callback |
+
+###### Example
+```javascript
+const secrets = [
+    { id: 'foo', path: '/secret/foo' },
+    { id: 'bar', path: '/secret/bar' },
+    '/secret/other'
+    { id: 'super', path: '/secret/super' }
+];
+
+vault.watch(secrets, function(err, data) {
+    // do something once all secrets have been successfully retrieved.
+});
+
+vault.on('secret:foo', function(secret) {
+    // execute when secret is first retreived and everytime secret is renewed
+});
+```
+
 
 ### vault.delete(url, [config], [cb])
 Issues a DELETE request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
@@ -206,25 +270,7 @@ Issues a PUT request to vault. If the client is authenticated, the request will 
 | cb | `{Function}` | node style callback |
 
 
-### vault.secret([id])
-Fetch a secret from the store.
 
-###### Params
-| param | type | description |
-| :--- | :---: | :--- |
-| id | `{String}` | an id or path (if no id was specified with the `watch` call) of the secret to fetch |
-
-
-### vault.watch(secrets, [options], [cb])
-Fetches one or more secrets from vault and caches them in the store. If a secret includes a `lease_duration` greater than 0, this method will handle renewing them periodically. Failed attempts will be automatically retried using [node-retry](https://github.com/tim-kos/node-retry) |
-
-###### Params
-| param | type | description |
-| :--- | :---: | :--- |
-| secrets* | `{Object|Object[]|String|String[]}` | one or more secrets to watch. a secret can either be a relative url string (`/secret/foo`) or an object that defines a `path` attribute and an optional `id` |
-| options | `{Object}` |  |
-| options.retry | `{Object}` | optional [node-retry](https://github.com/tim-kos/node-retry) settings or retrying failed attempts |
-| cb | `{Function}` | node style callback |
 
 
 
@@ -258,9 +304,14 @@ Following are backend specific login options
 
 
 ## Testing
-*requires up to date versions of docker & docker-compose*
+run the test suite  (*requires docker-compose v1.7+*)
 ```bash
 docker-compose up
+```
+
+run coverage
+```bash
+docker-compose run client npm run coverage
 ```
 
 
