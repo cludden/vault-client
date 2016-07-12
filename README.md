@@ -112,6 +112,20 @@ const vault = new Vault({
 });
 ```
 
+
+### vault.login(options, [callback])
+Create a new session with vault server and periodically refresh it.  
+*currently the 'userpass' backend is the only supported backend*
+
+###### Params
+| param | type | description |
+| :--- | :---: | :--- |
+| options* | `{Object} | login options |
+| options.backend* | `{String}` | the backend to use. currently supported backends: userpass |
+| options.options* | `{Object}` | backend specific options |
+| options.retry | `{Object}` | in the event of network errors, the client will continue attempting the login using [node-retry](https://github.com/tim-kos/node-retry) |
+
+
 ### vault.secret([id])
 Fetch a secret from the store.
 
@@ -221,19 +235,6 @@ vault.get('/secrets/foo', {
 ```
 
 
-### vault.login(options, [callback])
-Create a new session with vault server and periodically refresh it.  
-*currently the 'userpass' backend is the only supported backend*
-
-###### Params
-| param | type | description |
-| :--- | :---: | :--- |
-| options* | `{Object} | login options |
-| options.backend* | `{String}` | the backend to use. currently supported backends: userpass |
-| options.options* | `{Object}` | backend specific options |
-| options.retry | `{Object}` | in the event of network errors, the client will continue attempting the login using [node-retry](https://github.com/tim-kos/node-retry) |
-
-
 ### vault.patch(url, [data], [config], [cb])
 Issues a PATCH request to vault. If the client is authenticated, the request will include the current client_token via the `X-VAULT-TOKEN` header.
 
@@ -271,19 +272,55 @@ Issues a PUT request to vault. If the client is authenticated, the request will 
 
 
 
-
-
-
 ## Events
 | name | callback | description |
 | :--- | :--- | :--- |
 | error | `function(err)` | all errors will bubble to here |
-| error:login | `function(err)` | login errors |
+| secret:{secret_id} | `function(secret)` | triggered when a secret is first fetched on watch, and on every subsequent renewal |
 
 
 
 ## Auth Backends
 Following are backend specific login options
+
+### aws-ec2
+```js
+{
+    backend: 'aws-ec2',
+    options: {
+        /**
+         * [OPTIONAL] a string nonce
+         * @type {String}
+         */
+        nonce: 'my-nonce',
+
+        /**
+         * [OPTIONAL] a synchronous method for fetching/generating the nonce
+         * @return {String}
+         */
+        nonce() {
+            // do some stuff
+            return nonce;
+        },
+
+        /**
+         * [OPTIONAL] an asynchronous method for fetching/generating the nonce
+         * @param  {Function} done - callback
+         */
+        nonce(done) {
+            // do some stuff
+            done(null, nonce);
+        },
+
+        /**
+         * [OPTIONAL] role
+         * @type {String}
+         */
+        role: 'my-role'
+    }
+}
+```
+
 
 ### userpass
 ```js
