@@ -160,7 +160,9 @@ Fetches one or more secrets from vault and caches them internally. If a secret i
 ###### Params
 | param | type | description |
 | :--- | :---: | :--- |
-| secrets* | `{Object,Object[]}` | one or more secrets to watch. a secret must be an object that defines a `path` attribute and an `address`. if an address of `.` is provided, the secret will be merged onto the cache object directly |
+| secrets* | `{Object,Object[]}` | |
+| secrets.$.address* | `{String}` | the caching address to use for the fetched secret's data |
+| secrets.$.path* | `{String}` | the relative url of the secret in vault |
 | options | `{Object}` |  |
 | options.retry | `{Object}` | optional [node-retry](https://github.com/tim-kos/node-retry) settings for retrying failed attempts |
 | cb | `{Function}` | node style callback |
