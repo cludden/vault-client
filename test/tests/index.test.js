@@ -26,9 +26,13 @@ describe(`constructor tests`, function() {
             console.error(err);
         });
 
-        vault.client.interceptors.request.use(function(config) {
-            console.log(`VAULT:: ${config.method.toUpperCase()} ${config.url}`);
-            return config;
+        vault.client.interceptors.response.use(function(res) {
+            console.log(`VAULT:: ${res.config.method.toUpperCase()} ${res.config.url} ${res.status}`);
+            return res;
+        }, function(res) {
+            console.log(`VAULT:: ${res.config.method.toUpperCase()} ${res.config.url} ${res.status}`);
+            console.log(JSON.stringify(res.data));
+            return Promise.reject(res);
         });
 
         async.auto({
