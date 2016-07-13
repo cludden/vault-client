@@ -82,6 +82,8 @@ describe(`#watch()`, function() {
             });
 
             const timemachine = utils.timemachine();
+            const spy = sinon.spy();
+            vault.on('secret:bar', spy);
             async.series([
                 function(fn) {
                     vault.watch([{
@@ -113,6 +115,7 @@ describe(`#watch()`, function() {
                         const e = _.attempt(function() {
                             expect(counter).to.have.property('foo', 2);
                             expect(counter).to.have.property('bar', 25);
+                            expect(spy).to.have.callCount(25);
                         });
                         fn(e);
                     });

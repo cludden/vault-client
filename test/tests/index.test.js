@@ -2,11 +2,13 @@
 
 const async = require('async');
 const chai = require('chai');
+const chaiaspromised = require('chai-as-promised');
 const sinonchai = require('sinon-chai');
 const Vault = require('../../index');
 const _ = require('lodash');
 
 chai.use(sinonchai);
+chai.use(chaiaspromised);
 const expect = chai.expect;
 
 describe(`constructor tests`, function() {
