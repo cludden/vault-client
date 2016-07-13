@@ -35,6 +35,24 @@ async.series([
         }, next);
     },
 
+    // let's add some secrets
+    function addSecrets(next) {
+        const secrets = [{
+            path: '/secret/foo',
+            data: {
+                foo: 'bar'
+            }
+        },{
+            path: '/secret/bar',
+            data: {
+                bar: 'baz'
+            }
+        }];
+        async.each(secrets, function(secret, done) {
+            vault.post(secret.path, secret.data, done);
+        }, next);
+    },
+
     // next, we can fetch a single secret from vault
     function get(next) {
         vault.get('/secret/foo', function(err, data) {
@@ -46,16 +64,16 @@ async.series([
             //   "lease_duration": 2592000,
             //   "renewable": false
             // }
-            next(err, data);
+            next(err);
         });
     },
 
     // or, we can choose to watch a single secret. the vault client
-    // will store the fetched secret locally, and will handle renewing
+    // will cache the fetched secret locally, and will handle renewing
     // the secret if a lease_duration is included in the response metadata
     function(next) {
         vault.watch({
-            id: 'foo'
+            address: 'foo', // store the secret in the cache at path "foo"
             path: '/secret/foo'
         }, function(err, data) {
             const foo = vault.secret('foo');
@@ -64,10 +82,11 @@ async.series([
             next(err, data);
         });
 
-        // we can listen for secret renewals
+        // we can listen for secret renewals at the "foo" address by attaching
+        // a listener to the "secret:<address>" event
         vault.on('secret:foo', function(data) {
             console.log(JSON.stringify(data))
-            // { "foo": "baz" }
+            // { "foo": "goo" }
         });
     },
 
@@ -75,17 +94,14 @@ async.series([
     // will handle renewing each secret based on its lease_duration.
     function(next) {
         vault.watch([{
-            id: 'foo',
+            address: '.', // the root address, secret will be merged into the root
             path: '/secret/foo'
         }, {
-            id: 'bar',
+            address: 'bar',
             path: '/secret/bar'
         }], function(err, data) {
-            const foo = vault.secret('foo');
-            const bar = vault.secret('bar');
-            console.log(JSON.stringify(foo), JSON.stringify(bar));
-            // { "foo": "bar" } { "bar": "baz" }
-            next(err, data);
+            console.log(JSON.stringify(vault.secret()))
+            // { "bar": { "bar": "baz" }, "foo": "bar" }
         });
     }
 ]);
@@ -112,13 +128,13 @@ const vault = new Vault({
 });
 ```
 
-### vault.secret([id])
-Fetch a secret from the store.
+### vault.secret([address])
+Fetch a copy of a partial branch of secret cache. If no address is specified, a copy of the entire cache will be returned.
 
 ###### Params
 | param | type | description |
 | :--- | :---: | :--- |
-| id | `{String}` | an id or path (if no id was specified with the `watch` call) of the secret to fetch |
+| address | `{String}` | an path of the cache to retrieve |
 
 ###### Example
 ```javascript
@@ -126,9 +142,8 @@ const secrets = vault.secret();
 console.log(JSON.stringify(secrets));
 // returns a copy of the internal store
 // {
-//      "foo": { "foo": "bar" },
+//      "foo": "bar",
 //      "bar": { "bar": "baz" },
-//      "/secret/other": { "this": "secret", "that": "secret" },
 //      "super": { "nested": { "secret": "s3cr3t" }}
 // }
 
@@ -140,12 +155,12 @@ console.log(nested)
 
 
 ### vault.watch(secrets, [options], [cb])
-Fetches one or more secrets from vault and caches them in the store. If a secret includes a `lease_duration` greater than 0, this method will handle renewing them periodically. Failed attempts will be automatically retried using [node-retry](https://github.com/tim-kos/node-retry) |
+Fetches one or more secrets from vault and caches them internally. If a secret includes a `lease_duration` greater than 0, this method will handle renewing them periodically. Failed attempts will be automatically retried using [node-retry](https://github.com/tim-kos/node-retry) |
 
 ###### Params
 | param | type | description |
 | :--- | :---: | :--- |
-| secrets* | `{Object,Object[],String,String[]}` | one or more secrets to watch. a secret can either be a relative url string (`/secret/foo`) or an object that defines a `path` attribute and an optional `id`. if no `id` is provided, the path will be used as the key in the store |
+| secrets* | `{Object,Object[]}` | one or more secrets to watch. a secret must be an object that defines a `path` attribute and an `address`. if an address of `.` is provided, the secret will be merged onto the cache object directly |
 | options | `{Object}` |  |
 | options.retry | `{Object}` | optional [node-retry](https://github.com/tim-kos/node-retry) settings for retrying failed attempts |
 | cb | `{Function}` | node style callback |
@@ -153,10 +168,9 @@ Fetches one or more secrets from vault and caches them in the store. If a secret
 ###### Example
 ```javascript
 const secrets = [
-    { id: 'foo', path: '/secret/foo' },
-    { id: 'bar', path: '/secret/bar' },
-    '/secret/other'
-    { id: 'super', path: '/secret/super' }
+    { address: '.', path: '/secret/foo' },
+    { address: 'bar', path: '/secret/bar' },
+    { address: 'super', path: '/secret/super' }
 ];
 
 vault.watch(secrets, function(err, data) {
@@ -164,7 +178,7 @@ vault.watch(secrets, function(err, data) {
 });
 
 vault.on('secret:foo', function(secret) {
-    // execute when secret is first retreived and everytime secret is renewed
+    // execute when secret is first retrieved and every time secret is renewed
 });
 ```
 

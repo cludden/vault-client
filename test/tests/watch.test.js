@@ -12,18 +12,15 @@ describe(`#watch()`, function() {
     context(`(expected failures)`, function() {
         it(`should fail with invalid secrets`, function(done) {
             const invalid = [
-                'not a uri',
-                ['not a uri'],
-                { id: 'foo' },
-                { path: 'not a uri' }
+                { address: 'foo' }, // missing path
+                { path: '/secret/foo' }, // missing address
+                { address: '.', path: 'not a uri' } // invalid path
             ];
             async.eachSeries(invalid, function(secrets, next) {
-                sinon.spy(vault, 'emit');
                 vault.watch(secrets, function(err) {
                     const e = _.attempt(function() {
                         expect(err).to.exist;
                     });
-                    vault.emit.restore();
                     next(e);
                 });
             }, done);
@@ -32,7 +29,7 @@ describe(`#watch()`, function() {
         it(`should fail if one or more secret requests fail all attempts`, function(done) {
             const mock = new MockAdapter(vault.client);
             mock.onAny(/.+/).reply(503);
-            vault.watch('/secret/foo', {
+            vault.watch({path: '/secret/foo', address: 'foo'}, {
                 retry: {
                     retries: 2,
                     minTimeout: 10,
@@ -88,19 +85,18 @@ describe(`#watch()`, function() {
             async.series([
                 function(fn) {
                     vault.watch([{
-                        id: 'foo',
+                        address: '.',
                         path: '/secret/foo'
                     }, {
-                        id: 'bar',
+                        address: 'bar',
                         path: '/secret/bar'
-                    }], function(err, data) {
+                    }], function(err, secrets) {
                         const e = _.attempt(function() {
                             expect(err).to.not.exist;
-                            expect(data).to.be.an('object')
+                            expect(secrets).to.be.an('object')
                             .that.contains.all.keys('foo', 'bar');
-                            expect(data.foo).to.be.an('object')
-                            .with.property('foo', 'bar');
-                            expect(data.bar).to.be.an('object')
+                            expect(secrets.foo).to.equal('bar');
+                            expect(secrets.bar).to.be.an('object')
                             .with.property('bar', 'baz');
                         });
                         fn(e);
