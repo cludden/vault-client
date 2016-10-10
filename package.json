@@ -4,9 +4,10 @@
   "description": "js client for HashiCorp's vault",
   "main": "index.js",
   "scripts": {
-    "coverage": "node -e \"require('grunt').tasks(['coverage']);\"",
-    "test": "mocha test/tests/index.test.js test/tests/ --recursive",
-    "test:some": "mocha test/tests/index.test.js"
+    "build": "babel lib -d dist",
+    "coverage": "./node_modules/.bin/babel-node ./node_modules/.bin/babel-istanbul cover tape test/tests/**/*.test.js",
+    "postversion": "npm run build",
+    "test": "babel-tape-runner -r ./test/tests/index.tape.js ./test/tests/**/*.tape.js"
   },
   "keywords": [
     "vault",
@@ -20,24 +21,24 @@
     "url": "https://github.com/cludden/vault-client"
   },
   "dependencies": {
-    "async": "^1.5.2",
+    "ajv": "^4.7.7",
     "axios": "^0.11.1",
-    "joi": "^8.4.0",
+    "baobab": "^2.3.3",
+    "bluebird": "^3.4.6",
+    "eventemitter2": "^2.1.3",
     "lodash": "^4.13.1",
     "long-timeout": "^0.1.1",
     "retry": "^0.9.0"
   },
   "devDependencies": {
     "axios-mock-adapter": "^1.5.0",
-    "chai": "^3.5.0",
-    "eslint": "^2.11.1",
+    "eslint": "^3.7.0",
+    "eslint-config-airbnb-base": "^8.0.0",
+    "eslint-plugin-import": "^1.16.0",
     "faker": "^3.1.0",
-    "grunt": "^1.0.1",
-    "grunt-mocha-istanbul": "^5.0.1",
     "istanbul": "^0.4.4",
-    "mocha": "^2.5.3",
     "ms": "^0.7.1",
     "sinon": "^1.17.4",
-    "sinon-chai": "^2.8.0"
+    "tape": "^4.6.2"
   }
 }

@@ -1,0 +1,19 @@
+{
+  "env": {
+    "es6": true,
+    "node": true
+  },
+  "extends": "airbnb-base",
+  "parserOptions": {
+    "sourceType": "module"
+  },
+  "rules": {
+    "arrow-body-style": "off",
+    "consistent-return": "off",
+    "indent": [
+      "error",
+      2
+    ],
+    "no-underscore-dangle": "off"
+  }
+}
